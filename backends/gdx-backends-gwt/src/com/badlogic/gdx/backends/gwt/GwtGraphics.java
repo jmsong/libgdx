@@ -18,14 +18,8 @@ package com.badlogic.gdx.backends.gwt;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Graphics;
-import com.badlogic.gdx.Graphics.BufferFormat;
-import com.badlogic.gdx.Graphics.DisplayMode;
-import com.badlogic.gdx.Graphics.GraphicsType;
-import com.badlogic.gdx.graphics.GL10;
-import com.badlogic.gdx.graphics.GL11;
 import com.badlogic.gdx.graphics.GL20;
-import com.badlogic.gdx.graphics.GLCommon;
-import com.badlogic.gdx.graphics.GLU;
+import com.badlogic.gdx.graphics.GL30;
 import com.badlogic.gdx.utils.GdxRuntimeException;
 import com.google.gwt.canvas.client.Canvas;
 import com.google.gwt.dom.client.CanvasElement;
@@ -60,6 +54,7 @@ public class GwtGraphics implements Graphics {
 		attributes.setStencil(config.stencil);
 		attributes.setAlpha(false);
 		attributes.setPremultipliedAlpha(false);
+		attributes.setPreserveDrawingBuffer(config.preserveDrawingBuffer);
 
 		context = WebGLRenderingContext.getContext(canvas, attributes);
 		context.viewport(0, 0, config.width, config.height);
@@ -71,38 +66,8 @@ public class GwtGraphics implements Graphics {
 	}
 
 	@Override
-	public boolean isGL11Available () {
-		return false;
-	}
-
-	@Override
-	public boolean isGL20Available () {
-		return true;
-	}
-
-	@Override
-	public GLCommon getGLCommon () {
-		return gl;
-	}
-
-	@Override
-	public GL10 getGL10 () {
-		return null;
-	}
-
-	@Override
-	public GL11 getGL11 () {
-		return null;
-	}
-
-	@Override
 	public GL20 getGL20 () {
 		return gl;
-	}
-
-	@Override
-	public GLU getGLU () {
-		return null;
 	}
 
 	@Override
@@ -161,11 +126,11 @@ public class GwtGraphics implements Graphics {
 	}
 
 	private native int getScreenWidthJSNI () /*-{
-															return screen.width;
+															return $wnd.screen.width;
 															}-*/;
 
 	private native int getScreenHeightJSNI () /*-{
-															return screen.height;
+															return $wnd.screen.height;
 															}-*/;
 
 	private native boolean isFullscreenJSNI () /*-{
@@ -187,8 +152,8 @@ public class GwtGraphics implements Graphics {
 
 	private native boolean setFullscreenJSNI (GwtGraphics graphics, CanvasElement element) /*-{
 																														if(element.webkitRequestFullScreen) {
-																														element.width = screen.width;
-																														element.height = screen.height;
+																														element.width = $wnd.screen.width;
+																														element.height = $wnd.screen.height;
 																														element.webkitRequestFullScreen(Element.ALLOW_KEYBOARD_INPUT);
 																														$doc.addEventListener("webkitfullscreenchange", function() {
 																														graphics.@com.badlogic.gdx.backends.gwt.GwtGraphics::fullscreenChanged()();
@@ -196,8 +161,8 @@ public class GwtGraphics implements Graphics {
 																														return true;
 																														}
 																														if(element.mozRequestFullScreen) {
-																														element.width = screen.width;
-																														element.height = screen.height;
+																														element.width = $wnd.screen.width;
+																														element.height = $wnd.screen.height;
 																														element.mozRequestFullScreen();
 																														$doc.addEventListener("mozfullscreenchange", function() {
 																														graphics.@com.badlogic.gdx.backends.gwt.GwtGraphics::fullscreenChanged()();
@@ -243,7 +208,7 @@ public class GwtGraphics implements Graphics {
 
 	@Override
 	public boolean supportsExtension (String extension) {
-		if (extensions == null) extensions = Gdx.gl.glGetString(GL10.GL_EXTENSIONS);
+		if (extensions == null) extensions = Gdx.gl.glGetString(GL20.GL_EXTENSIONS);
 		return extensions.contains(extension);
 	}
 
@@ -270,22 +235,20 @@ public class GwtGraphics implements Graphics {
 
 	@Override
 	public float getDensity () {
-		return 96 / 160;
+		return 96.0f / 160;
 	}
 
 	@Override
 	public void setContinuousRendering (boolean isContinuous) {
-		throw new GdxRuntimeException("No supported");
 	}
 
 	@Override
 	public boolean isContinuousRendering () {
-		throw new GdxRuntimeException("No supported");
+		return false;
 	}
 
 	@Override
 	public void requestRendering () {
-		throw new GdxRuntimeException("No supported");
 	}
 
 	@Override
@@ -296,5 +259,15 @@ public class GwtGraphics implements Graphics {
 	@Override
 	public boolean isFullscreen () {
 		return isFullscreenJSNI();
+	}
+
+	@Override
+	public boolean isGL30Available () {
+		return false;
+	}
+
+	@Override
+	public GL30 getGL30 () {
+		return null;
 	}
 }

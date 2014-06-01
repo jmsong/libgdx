@@ -17,7 +17,7 @@
 package com.badlogic.gdx.tests;
 
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.graphics.GL10;
+import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.scenes.scene2d.Stage;
@@ -37,7 +37,7 @@ public class ImageTest extends GdxTest {
 	public void create () {
 		skin = new Skin(Gdx.files.internal("data/uiskin.json"));
 		image2 = new TextureRegion(new Texture(Gdx.files.internal("data/badlogic.jpg")));
-		ui = new Stage(Gdx.graphics.getWidth(), Gdx.graphics.getHeight(), false);
+		ui = new Stage();
 		Gdx.input.setInputProcessor(ui);
 
 		root = new Table();
@@ -59,7 +59,7 @@ public class ImageTest extends GdxTest {
 	@Override
 	public void render () {
 		Gdx.gl.glClearColor(0.2f, 0.2f, 0.2f, 1);
-		Gdx.gl.glClear(GL10.GL_COLOR_BUFFER_BIT);
+		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 		ui.act(Math.min(Gdx.graphics.getDeltaTime(), 1 / 30f));
 		ui.draw();
 		Table.drawDebug(ui);
@@ -67,12 +67,7 @@ public class ImageTest extends GdxTest {
 
 	@Override
 	public void resize (int width, int height) {
-		ui.setViewport(width, height, false);
+		ui.getViewport().update(width, height, true);
 		root.setSize(width, height);
-	}
-
-	@Override
-	public boolean needsGL20 () {
-		return false;
 	}
 }

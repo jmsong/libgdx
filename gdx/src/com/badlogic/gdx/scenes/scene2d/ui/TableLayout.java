@@ -16,22 +16,19 @@
 
 package com.badlogic.gdx.scenes.scene2d.ui;
 
-import com.esotericsoftware.tablelayout.BaseTableLayout;
-import com.esotericsoftware.tablelayout.Cell;
-import com.esotericsoftware.tablelayout.Toolkit;
-
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.graphics.GL10;
-import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.glutils.ImmediateModeRenderer;
-import com.badlogic.gdx.graphics.glutils.ImmediateModeRenderer10;
 import com.badlogic.gdx.graphics.glutils.ImmediateModeRenderer20;
-import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.Group;
 import com.badlogic.gdx.scenes.scene2d.ui.TableToolkit.DebugRect;
 import com.badlogic.gdx.scenes.scene2d.utils.Layout;
 import com.badlogic.gdx.utils.Array;
+import com.esotericsoftware.tablelayout.BaseTableLayout;
+import com.esotericsoftware.tablelayout.Cell;
+import com.esotericsoftware.tablelayout.Toolkit;
 
 /** The libgdx implementation to apply a table layout.
  * @author Nathan Sweet */
@@ -60,43 +57,19 @@ class TableLayout extends BaseTableLayout<Actor, Table, TableLayout, TableToolki
 				float widgetHeight = Math.round(c.getWidgetHeight());
 				float widgetX = Math.round(c.getWidgetX());
 				float widgetY = height - Math.round(c.getWidgetY()) - widgetHeight;
-				c.setWidgetX(widgetX);
-				c.setWidgetY(widgetY);
-				c.setWidgetWidth(widgetWidth);
-				c.setWidgetHeight(widgetHeight);
+				c.setWidgetBounds(widgetX, widgetY, widgetWidth, widgetHeight);
 				Actor actor = (Actor)c.getWidget();
-				if (actor != null) {
-					actor.setX(widgetX);
-					actor.setY(widgetY);
-					if (actor.getWidth() != widgetWidth || actor.getHeight() != widgetHeight) {
-						actor.setWidth(widgetWidth);
-						actor.setHeight(widgetHeight);
-						if (actor instanceof Layout) ((Layout)actor).invalidate();
-					}
-				}
+				if (actor != null) actor.setBounds(widgetX, widgetY, widgetWidth, widgetHeight);
 			}
 		} else {
 			for (int i = 0, n = cells.size(); i < n; i++) {
 				Cell c = cells.get(i);
 				if (c.getIgnore()) continue;
-				float widgetWidth = c.getWidgetWidth();
 				float widgetHeight = c.getWidgetHeight();
-				float widgetX = c.getWidgetX();
 				float widgetY = height - c.getWidgetY() - widgetHeight;
-				c.setWidgetX(widgetX);
 				c.setWidgetY(widgetY);
-				c.setWidgetWidth(widgetWidth);
-				c.setWidgetHeight(widgetHeight);
 				Actor actor = (Actor)c.getWidget();
-				if (actor != null) {
-					actor.setX(widgetX);
-					actor.setY(widgetY);
-					if (actor.getWidth() != widgetWidth || actor.getHeight() != widgetHeight) {
-						actor.setWidth(widgetWidth);
-						actor.setHeight(widgetHeight);
-						if (actor instanceof Layout) ((Layout)actor).invalidate();
-					}
-				}
+				if (actor != null) actor.setBounds(c.getWidgetX(), widgetY, c.getWidgetWidth(), widgetHeight);
 			}
 		}
 		// Validate children separately from sizing actors to ensure actors without a cell are validated.
@@ -107,25 +80,16 @@ class TableLayout extends BaseTableLayout<Actor, Table, TableLayout, TableToolki
 		}
 	}
 
-	/** Invalides the layout of this widget and every parent widget to the root of the hierarchy. */
+	/** Invalidates the layout of this widget and every parent widget to the root of the hierarchy. */
 	public void invalidateHierarchy () {
 		super.invalidate();
 		getTable().invalidateHierarchy();
 	}
 
-	private void toStageCoordinates (Actor actor, Vector2 point) {
-		point.x += actor.getX();
-		point.y += actor.getY();
-		toStageCoordinates(actor.getParent(), point);
-	}
-
-	public void drawDebug (SpriteBatch batch) {
+	public void drawDebug (Batch batch) {
 		if (getDebug() == Debug.none || debugRects == null) return;
 		if (debugRenderer == null) {
-			if (Gdx.graphics.isGL20Available())
-				debugRenderer = new ImmediateModeRenderer20(64, false, true, 0);
-			else
-				debugRenderer = new ImmediateModeRenderer10(64);
+			debugRenderer = new ImmediateModeRenderer20(64, false, true, 0);
 		}
 
 		float x = 0, y = 0;
@@ -138,7 +102,7 @@ class TableLayout extends BaseTableLayout<Actor, Table, TableLayout, TableToolki
 			parent = parent.getParent();
 		}
 
-		debugRenderer.begin(batch.getProjectionMatrix(), GL10.GL_LINES);
+		debugRenderer.begin(batch.getProjectionMatrix(), GL20.GL_LINES);
 		for (int i = 0, n = debugRects.size; i < n; i++) {
 			DebugRect rect = debugRects.get(i);
 			float x1 = x + rect.x;
@@ -171,7 +135,7 @@ class TableLayout extends BaseTableLayout<Actor, Table, TableLayout, TableToolki
 
 			if (debugRenderer.getNumVertices() == 64) {
 				debugRenderer.end();
-				debugRenderer.begin(batch.getProjectionMatrix(), GL10.GL_LINES);
+				debugRenderer.begin(batch.getProjectionMatrix(), GL20.GL_LINES);
 			}
 		}
 		debugRenderer.end();

@@ -16,6 +16,7 @@
 
 package com.badlogic.gdx.backends.android;
 
+import android.content.Context;
 import android.view.MotionEvent;
 
 import com.badlogic.gdx.Gdx;
@@ -28,20 +29,19 @@ import com.badlogic.gdx.backends.android.AndroidInput.TouchEvent;
 public class AndroidMultiTouchHandler implements AndroidTouchHandler {
 	public void onTouch (MotionEvent event, AndroidInput input) {
 		final int action = event.getAction() & MotionEvent.ACTION_MASK;
-		int pointerIndex = (event.getAction() & MotionEvent.ACTION_POINTER_ID_MASK) >> MotionEvent.ACTION_POINTER_ID_SHIFT;
+		int pointerIndex = (event.getAction() & MotionEvent.ACTION_POINTER_INDEX_MASK) >> MotionEvent.ACTION_POINTER_INDEX_SHIFT;
 		int pointerId = event.getPointerId(pointerIndex);
 
 		int x = 0, y = 0;
 		int realPointerIndex = 0;
 
 		long timeStamp = System.nanoTime();
-// long timeStamp = event.getEventTime() * 1000000;
-		// logAction(action, pointerId);
-		synchronized (input) { // FUCK
+		synchronized (input) {
 			switch (action) {
 			case MotionEvent.ACTION_DOWN:
 			case MotionEvent.ACTION_POINTER_DOWN:
 				realPointerIndex = input.getFreePointerIndex(); // get a free pointer index as reported by Input.getX() etc.
+				if (realPointerIndex >= AndroidInput.NUM_TOUCHES) break;
 				input.realId[realPointerIndex] = pointerId;
 				x = (int)event.getX(pointerIndex);
 				y = (int)event.getY(pointerIndex);
@@ -59,6 +59,7 @@ public class AndroidMultiTouchHandler implements AndroidTouchHandler {
 			case MotionEvent.ACTION_CANCEL:
 				realPointerIndex = input.lookUpPointerIndex(pointerId);
 				if (realPointerIndex == -1) break;
+				if (realPointerIndex >= AndroidInput.NUM_TOUCHES) break;
 				input.realId[realPointerIndex] = -1;
 				x = (int)event.getX(pointerIndex);
 				y = (int)event.getY(pointerIndex);
@@ -79,6 +80,7 @@ public class AndroidMultiTouchHandler implements AndroidTouchHandler {
 					y = (int)event.getY(pointerIndex);
 					realPointerIndex = input.lookUpPointerIndex(pointerId);
 					if (realPointerIndex == -1) continue;
+					if (realPointerIndex >= AndroidInput.NUM_TOUCHES) break;
 					postTouchEvent(input, TouchEvent.TOUCH_DRAGGED, x, y, realPointerIndex, timeStamp);
 					input.deltaX[realPointerIndex] = x - input.touchX[realPointerIndex];
 					input.deltaY[realPointerIndex] = y - input.touchY[realPointerIndex];
@@ -113,7 +115,6 @@ public class AndroidMultiTouchHandler implements AndroidTouchHandler {
 	}
 
 	private void postTouchEvent (AndroidInput input, int type, int x, int y, int pointer, long timeStamp) {
-// long timeStamp = System.nanoTime();
 		TouchEvent event = input.usedTouchEvents.obtain();
 		event.timeStamp = timeStamp;
 		event.pointer = pointer;
@@ -123,7 +124,7 @@ public class AndroidMultiTouchHandler implements AndroidTouchHandler {
 		input.touchEvents.add(event);
 	}
 
-	public boolean supportsMultitouch (AndroidApplication activity) {
+	public boolean supportsMultitouch (Context activity) {
 		return activity.getPackageManager().hasSystemFeature("android.hardware.touchscreen.multitouch");
 	}
 }

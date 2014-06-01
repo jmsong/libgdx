@@ -20,6 +20,8 @@ import java.awt.Color;
 import java.awt.FlowLayout;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowFocusListener;
+import java.nio.ByteOrder;
+import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -37,6 +39,10 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 
+import com.badlogic.gdx.graphics.Pixmap;
+import com.badlogic.gdx.utils.GdxRuntimeException;
+import org.lwjgl.LWJGLException;
+import org.lwjgl.input.Cursor;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 
@@ -45,10 +51,10 @@ import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.utils.Pool;
 
-/** An implementation of the {@link Input} interface hooking a Jogl panel for input.
+/** An implementation of the {@link Input} interface hooking a LWJGL panel for input.
  * 
  * @author mzechner */
-final class LwjglInput implements Input {
+final public class LwjglInput implements Input {
 	static public float keyRepeatInitialTime = 0.4f;
 	static public float keyRepeatTime = 0.1f;
 
@@ -218,6 +224,8 @@ final class LwjglInput implements Input {
 	}
 
 	public boolean isKeyPressed (int key) {
+		if (!Keyboard.isCreated()) return false;
+		
 		if (key == Input.Keys.ANY_KEY)
 			return pressedKeys > 0;
 		else
@@ -326,6 +334,34 @@ final class LwjglInput implements Input {
 
 	public static int getGdxKeyCode (int lwjglKeyCode) {
 		switch (lwjglKeyCode) {
+		case Keyboard.KEY_LBRACKET:
+			return Input.Keys.LEFT_BRACKET;
+		case Keyboard.KEY_RBRACKET:
+			return Input.Keys.RIGHT_BRACKET;
+		case Keyboard.KEY_GRAVE:
+			return Input.Keys.GRAVE;
+		case Keyboard.KEY_MULTIPLY:
+			return Input.Keys.STAR;
+		case Keyboard.KEY_NUMLOCK:
+			return Input.Keys.NUM;
+		case Keyboard.KEY_DECIMAL:
+			return Input.Keys.PERIOD;
+		case Keyboard.KEY_DIVIDE:
+			return Input.Keys.SLASH;
+		case Keyboard.KEY_LMETA:
+			return Input.Keys.SYM;
+		case Keyboard.KEY_RMETA:
+			return Input.Keys.SYM;
+		case Keyboard.KEY_NUMPADEQUALS:
+			return Input.Keys.EQUALS;
+		case Keyboard.KEY_AT:
+			return Input.Keys.AT;
+		case Keyboard.KEY_EQUALS:
+			return Input.Keys.EQUALS;
+		case Keyboard.KEY_NUMPADCOMMA:
+			return Input.Keys.COMMA;
+		case Keyboard.KEY_NUMPADENTER:
+			return Input.Keys.ENTER;
 		case Keyboard.KEY_0:
 			return Input.Keys.NUM_0;
 		case Keyboard.KEY_1:
@@ -485,25 +521,25 @@ final class LwjglInput implements Input {
 		case Keyboard.KEY_COLON:
 			return Input.Keys.COLON;
 		case Keyboard.KEY_NUMPAD0:
-			return Input.Keys.NUM_0;
+			return Input.Keys.NUMPAD_0;
 		case Keyboard.KEY_NUMPAD1:
-			return Input.Keys.NUM_1;
+			return Input.Keys.NUMPAD_1;
 		case Keyboard.KEY_NUMPAD2:
-			return Input.Keys.NUM_2;
+			return Input.Keys.NUMPAD_2;
 		case Keyboard.KEY_NUMPAD3:
-			return Input.Keys.NUM_3;
+			return Input.Keys.NUMPAD_3;
 		case Keyboard.KEY_NUMPAD4:
-			return Input.Keys.NUM_4;
+			return Input.Keys.NUMPAD_4;
 		case Keyboard.KEY_NUMPAD5:
-			return Input.Keys.NUM_5;
+			return Input.Keys.NUMPAD_5;
 		case Keyboard.KEY_NUMPAD6:
-			return Input.Keys.NUM_6;
+			return Input.Keys.NUMPAD_6;
 		case Keyboard.KEY_NUMPAD7:
-			return Input.Keys.NUM_7;
+			return Input.Keys.NUMPAD_7;
 		case Keyboard.KEY_NUMPAD8:
-			return Input.Keys.NUM_8;
+			return Input.Keys.NUMPAD_8;
 		case Keyboard.KEY_NUMPAD9:
-			return Input.Keys.NUM_9;
+			return Input.Keys.NUMPAD_9;
 		default:
 			return Input.Keys.UNKNOWN;
 		}
@@ -511,6 +547,24 @@ final class LwjglInput implements Input {
 
 	public static int getLwjglKeyCode (int gdxKeyCode) {
 		switch (gdxKeyCode) {
+		case Input.Keys.APOSTROPHE:
+			return Keyboard.KEY_APOSTROPHE;
+		case Input.Keys.LEFT_BRACKET:
+			return Keyboard.KEY_LBRACKET;
+		case Input.Keys.RIGHT_BRACKET:
+			return Keyboard.KEY_RBRACKET;
+		case Input.Keys.GRAVE:
+			return Keyboard.KEY_GRAVE;
+		case Input.Keys.STAR:
+			return Keyboard.KEY_MULTIPLY;
+		case Input.Keys.NUM:
+			return Keyboard.KEY_NUMLOCK;
+		case Input.Keys.AT:
+			return Keyboard.KEY_AT;
+		case Input.Keys.EQUALS:
+			return Keyboard.KEY_EQUALS;
+		case Input.Keys.SYM:
+			return Keyboard.KEY_LMETA;
 		case Input.Keys.NUM_0:
 			return Keyboard.KEY_0;
 		case Input.Keys.NUM_1:
@@ -605,6 +659,14 @@ final class LwjglInput implements Input {
 			return Keyboard.KEY_RETURN;
 		case Input.Keys.HOME:
 			return Keyboard.KEY_HOME;
+		case Input.Keys.END:
+			return Keyboard.KEY_END;
+		case Input.Keys.PAGE_DOWN:
+			return Keyboard.KEY_NEXT;
+		case Input.Keys.PAGE_UP:
+			return Keyboard.KEY_PRIOR;
+		case Input.Keys.INSERT:
+			return Keyboard.KEY_INSERT;
 		case Input.Keys.MINUS:
 			return Keyboard.KEY_MINUS;
 		case Input.Keys.PERIOD:
@@ -657,6 +719,26 @@ final class LwjglInput implements Input {
 			return Keyboard.KEY_F12;
 		case Input.Keys.COLON:
 			return Keyboard.KEY_COLON;
+		case Input.Keys.NUMPAD_0:
+			return Keyboard.KEY_NUMPAD0;
+		case Input.Keys.NUMPAD_1:
+			return Keyboard.KEY_NUMPAD1;
+		case Input.Keys.NUMPAD_2:
+			return Keyboard.KEY_NUMPAD2;
+		case Input.Keys.NUMPAD_3:
+			return Keyboard.KEY_NUMPAD3;
+		case Input.Keys.NUMPAD_4:
+			return Keyboard.KEY_NUMPAD4;
+		case Input.Keys.NUMPAD_5:
+			return Keyboard.KEY_NUMPAD5;
+		case Input.Keys.NUMPAD_6:
+			return Keyboard.KEY_NUMPAD6;
+		case Input.Keys.NUMPAD_7:
+			return Keyboard.KEY_NUMPAD7;
+		case Input.Keys.NUMPAD_8:
+			return Keyboard.KEY_NUMPAD8;
+		case Input.Keys.NUMPAD_9:
+			return Keyboard.KEY_NUMPAD9;
 		default:
 			return Keyboard.KEY_NONE;
 		}
@@ -754,6 +836,9 @@ final class LwjglInput implements Input {
 					long timeStamp = Keyboard.getEventNanoseconds();
 
 					switch (keyCode) {
+					case Keys.DEL:
+						keyChar = 8;
+						break;
 					case Keys.FORWARD_DEL:
 						keyChar = 127;
 						break;
@@ -907,10 +992,66 @@ final class LwjglInput implements Input {
 
 	@Override
 	public void setCursorPosition (int x, int y) {
-		Mouse.setCursorPosition(x, y - 1);
+		Mouse.setCursorPosition(x, Gdx.graphics.getHeight() - 1 - y);
 	}
 
-	@Override
+  @Override
+  public void setCursorImage(Pixmap pixmap, int xHotspot, int yHotspot) {
+    try {
+      if (pixmap == null) {
+        Mouse.setNativeCursor (null);
+        return;
+      }
+
+      if (pixmap.getFormat() != Pixmap.Format.RGBA8888) {
+        throw new GdxRuntimeException ("Cursor image pixmap is not in RGBA8888 format.");
+      }
+
+      if ((pixmap.getWidth() & (pixmap.getWidth() - 1)) != 0 ) {
+        throw new GdxRuntimeException ("Cursor image pixmap width of " + pixmap.getWidth() + " is not a power-of-two greater than zero.");
+      }
+
+      if ((pixmap.getHeight() & (pixmap.getHeight() - 1)) != 0 ) {
+        throw new GdxRuntimeException ("Cursor image pixmap height of " + pixmap.getHeight() + " is not a power-of-two greater than zero.");
+      }
+
+      if (xHotspot < 0 || xHotspot >= pixmap.getWidth()) {
+        throw new GdxRuntimeException ("xHotspot coordinate of " + xHotspot  + " is not within image width bounds: [0, " + pixmap.getWidth() + ").");
+      }
+
+      if (yHotspot < 0 || yHotspot >= pixmap.getHeight()) {
+        throw new GdxRuntimeException ("yHotspot coordinate of " + yHotspot  + " is not within image height bounds: [0, " + pixmap.getHeight() + ").");
+      }
+
+      // Convert from RGBA8888 to ARGB8888 and flip vertically
+      IntBuffer pixelBuffer = pixmap.getPixels().asIntBuffer();
+      int[] pixelsRGBA = new int[pixelBuffer.capacity()];
+      pixelBuffer.get(pixelsRGBA);
+      int[] pixelsARGBflipped = new int[pixelBuffer.capacity()];
+      int pixel;
+      if (pixelBuffer.order() == ByteOrder.BIG_ENDIAN) {
+        for (int y = 0; y < pixmap.getHeight(); ++y) {
+          for (int x = 0; x < pixmap.getWidth(); ++x) {
+            pixel = pixelsRGBA[x + (y * pixmap.getWidth())];
+            pixelsARGBflipped[x + ((pixmap.getHeight() - 1 - y) * pixmap.getWidth())] = ((pixel >> 8) & 0x00FFFFFF) | ((pixel << 24) & 0xFF000000);
+          }
+        }
+      } else {
+        for (int y = 0; y < pixmap.getHeight(); ++y) {
+          for (int x = 0; x < pixmap.getWidth(); ++x) {
+            pixel = pixelsRGBA[x + (y * pixmap.getWidth())];
+            pixelsARGBflipped[x + ((pixmap.getHeight() - 1 - y) * pixmap.getWidth())] = ((pixel & 0xFF) << 16) | ((pixel & 0xFF0000) >> 16) | (pixel & 0xFF00FF00);
+          }
+        }
+      }
+
+      Mouse.setNativeCursor(new Cursor(pixmap.getWidth(), pixmap.getHeight(), xHotspot, pixmap.getHeight() - yHotspot - 4, 1, IntBuffer.wrap(pixelsARGBflipped), null));
+    } catch (LWJGLException e) {
+      throw new GdxRuntimeException("Could not set cursor image.", e);
+    }
+  }
+
+  @Override
 	public void setCatchMenuKey (boolean catchMenu) {
 	}
 
@@ -924,7 +1065,7 @@ final class LwjglInput implements Input {
 		// TODO Auto-generated method stub
 
 	}
-	
+
 	class KeyEvent {
 		static final int KEY_DOWN = 0;
 		static final int KEY_UP = 1;

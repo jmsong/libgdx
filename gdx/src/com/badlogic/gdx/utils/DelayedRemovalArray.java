@@ -37,7 +37,7 @@ public class DelayedRemovalArray<T> extends Array<T> {
 		super(array);
 	}
 
-	public DelayedRemovalArray (boolean ordered, int capacity, Class<T> arrayType) {
+	public DelayedRemovalArray (boolean ordered, int capacity, Class arrayType) {
 		super(ordered, capacity, arrayType);
 	}
 
@@ -45,11 +45,11 @@ public class DelayedRemovalArray<T> extends Array<T> {
 		super(ordered, capacity);
 	}
 
-	public DelayedRemovalArray (boolean ordered, T[] array) {
-		super(ordered, array);
+	public DelayedRemovalArray (boolean ordered, T[] array, int startIndex, int count) {
+		super(ordered, array, startIndex, count);
 	}
 
-	public DelayedRemovalArray (Class<T> arrayType) {
+	public DelayedRemovalArray (Class arrayType) {
 		super(arrayType);
 	}
 
@@ -101,6 +101,14 @@ public class DelayedRemovalArray<T> extends Array<T> {
 		return super.removeIndex(index);
 	}
 
+	public void removeRange (int start, int end) {
+		if (iterating) {
+			for (int i = end; i >= start; i--)
+				remove(i);
+		} else
+			super.removeRange(start, end);
+	}
+
 	public void set (int index, T value) {
 		if (iterating) throw new IllegalStateException("Invalid between begin/end.");
 		super.set(index, value);
@@ -131,7 +139,7 @@ public class DelayedRemovalArray<T> extends Array<T> {
 		super.sort();
 	}
 
-	public void sort (Comparator<T> comparator) {
+	public void sort (Comparator<? super T> comparator) {
 		if (iterating) throw new IllegalStateException("Invalid between begin/end.");
 		super.sort(comparator);
 	}
@@ -149,5 +157,10 @@ public class DelayedRemovalArray<T> extends Array<T> {
 	public void truncate (int newSize) {
 		if (iterating) throw new IllegalStateException("Invalid between begin/end.");
 		super.truncate(newSize);
+	}
+
+	/** @see #DelayedRemovalArray(Object[]) */
+	static public <T> DelayedRemovalArray<T> with (T... array) {
+		return new DelayedRemovalArray(array);
 	}
 }

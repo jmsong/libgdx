@@ -18,7 +18,6 @@ package com.badlogic.gdx.graphics.g2d;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -26,14 +25,18 @@ import java.io.Writer;
 
 import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.math.collision.BoundingBox;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.Disposable;
 import com.badlogic.gdx.utils.GdxRuntimeException;
+import com.badlogic.gdx.utils.StreamUtils;
 
 /** See <a href="http://www.badlogicgames.com/wordpress/?p=1255">http://www.badlogicgames.com/wordpress/?p=1255</a>
  * @author mzechner */
 public class ParticleEffect implements Disposable {
 	private final Array<ParticleEmitter> emitters;
+	private BoundingBox bounds;
+	private boolean ownsTexture;
 
 	public ParticleEffect () {
 		emitters = new Array(8);
@@ -50,17 +53,22 @@ public class ParticleEffect implements Disposable {
 			emitters.get(i).start();
 	}
 
+	public void reset () {
+		for (int i = 0, n = emitters.size; i < n; i++)
+			emitters.get(i).reset();
+	}
+
 	public void update (float delta) {
 		for (int i = 0, n = emitters.size; i < n; i++)
 			emitters.get(i).update(delta);
 	}
 
-	public void draw (SpriteBatch spriteBatch) {
+	public void draw (Batch spriteBatch) {
 		for (int i = 0, n = emitters.size; i < n; i++)
 			emitters.get(i).draw(spriteBatch);
 	}
 
-	public void draw (SpriteBatch spriteBatch, float delta) {
+	public void draw (Batch spriteBatch, float delta) {
 		for (int i = 0, n = emitters.size; i < n; i++)
 			emitters.get(i).draw(spriteBatch, delta);
 	}
@@ -73,7 +81,6 @@ public class ParticleEffect implements Disposable {
 	public boolean isComplete () {
 		for (int i = 0, n = emitters.size; i < n; i++) {
 			ParticleEmitter emitter = emitters.get(i);
-			if (emitter.isContinuous()) return false;
 			if (!emitter.isComplete()) return false;
 		}
 		return true;
@@ -98,6 +105,11 @@ public class ParticleEffect implements Disposable {
 			emitters.get(i).setFlip(flipX, flipY);
 	}
 
+	public void flipY () {
+		for (int i = 0, n = emitters.size; i < n; i++)
+			emitters.get(i).flipY();
+	}
+
 	public Array<ParticleEmitter> getEmitters () {
 		return emitters;
 	}
@@ -111,25 +123,14 @@ public class ParticleEffect implements Disposable {
 		return null;
 	}
 
-	public void save (File file) {
-		Writer output = null;
-		try {
-			output = new FileWriter(file);
-			int index = 0;
-			for (int i = 0, n = emitters.size; i < n; i++) {
-				ParticleEmitter emitter = emitters.get(i);
-				if (index++ > 0) output.write("\n\n");
-				emitter.save(output);
-				output.write("- Image Path -\n");
-				output.write(emitter.getImagePath() + "\n");
-			}
-		} catch (IOException ex) {
-			throw new GdxRuntimeException("Error saving effect: " + file, ex);
-		} finally {
-			try {
-				if (output != null) output.close();
-			} catch (IOException ex) {
-			}
+	public void save (Writer output) throws IOException {
+		int index = 0;
+		for (int i = 0, n = emitters.size; i < n; i++) {
+			ParticleEmitter emitter = emitters.get(i);
+			if (index++ > 0) output.write("\n\n");
+			emitter.save(output);
+			output.write("- Image Path -\n");
+			output.write(emitter.getImagePath() + "\n");
 		}
 	}
 
@@ -160,10 +161,7 @@ public class ParticleEffect implements Disposable {
 		} catch (IOException ex) {
 			throw new GdxRuntimeException("Error loading effect: " + effectFile, ex);
 		} finally {
-			try {
-				if (reader != null) reader.close();
-			} catch (IOException ex) {
-			}
+			StreamUtils.closeQuietly(reader);
 		}
 	}
 
@@ -182,6 +180,7 @@ public class ParticleEffect implements Disposable {
 	}
 
 	public void loadEmitterImages (FileHandle imagesDir) {
+		ownsTexture = true;
 		for (int i = 0, n = emitters.size; i < n; i++) {
 			ParticleEmitter emitter = emitters.get(i);
 			String imagePath = emitter.getImagePath();
@@ -197,9 +196,21 @@ public class ParticleEffect implements Disposable {
 
 	/** Disposes the texture for each sprite for each ParticleEmitter. */
 	public void dispose () {
+		if (!ownsTexture) return;
 		for (int i = 0, n = emitters.size; i < n; i++) {
 			ParticleEmitter emitter = emitters.get(i);
 			emitter.getSprite().getTexture().dispose();
 		}
+	}
+
+	/** Returns the bounding box for all active particles. z axis will always be zero. */
+	public BoundingBox getBoundingBox () {
+		if (bounds == null) bounds = new BoundingBox();
+
+		BoundingBox bounds = this.bounds;
+		bounds.inf();
+		for (ParticleEmitter emitter : this.emitters)
+			bounds.ext(emitter.getBoundingBox());
+		return bounds;
 	}
 }

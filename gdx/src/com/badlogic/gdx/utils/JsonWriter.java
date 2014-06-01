@@ -23,7 +23,7 @@ import java.util.regex.Pattern;
 /** Builder style API for emitting JSON.
  * @author Nathan Sweet */
 public class JsonWriter extends Writer {
-	Writer writer;
+	final Writer writer;
 	private final Array<JsonObject> stack = new Array();
 	private JsonObject current;
 	private boolean named;
@@ -31,6 +31,10 @@ public class JsonWriter extends Writer {
 
 	public JsonWriter (Writer writer) {
 		this.writer = writer;
+	}
+
+	public Writer getWriter () {
+		return writer;
 	}
 
 	public void setOutputType (OutputType outputType) {
@@ -82,6 +86,11 @@ public class JsonWriter extends Writer {
 	}
 
 	public JsonWriter value (Object value) throws IOException {
+		if (value instanceof Number) {
+			Number number = (Number)value;
+			long longValue = number.longValue();
+			if (number.doubleValue() == longValue) value = longValue;
+		}
 		if (current != null) {
 			if (current.array) {
 				if (!current.needsComma)
@@ -93,11 +102,7 @@ public class JsonWriter extends Writer {
 				named = false;
 			}
 		}
-		if (value == null || value instanceof Number || value instanceof Boolean) {
-			writer.write(String.valueOf(value));
-		} else {
-			writer.write(outputType.quoteValue(value.toString()));
-		}
+		writer.write(outputType.quoteValue(value));
 		return this;
 	}
 
@@ -153,31 +158,33 @@ public class JsonWriter extends Writer {
 		json,
 		/** Like JSON, but names are only quoted if necessary. */
 		javascript,
-		/** Like JSON, but names and values are only quoted if necessary. */
+		/** Like JSON, but names and values are only quoted if they don't contain <code>\r\n\t</code> or <code>space</code> and don't
+		 * begin with <code>{}[]:,"</code>. Additionally, names cannot contain <code>:</code> and values cannot contain
+		 * <code>}],</code>. */
 		minimal;
 
 		static private Pattern javascriptPattern = Pattern.compile("[a-zA-Z_$][a-zA-Z_$0-9]*");
-		static private Pattern minimalPattern = Pattern.compile("[a-zA-Z0-9_$][^:}\\], ]*");
+		static private Pattern minimalNamePattern = Pattern.compile("[^{}\\[\\],\":\\r\\n\\t ][^:\\r\\n\\t ]*");
+		static private Pattern minimalValuePattern = Pattern.compile("[^{}\\[\\],\":\\r\\n\\t ][^}\\],\\r\\n\\t ]*");
 
-		public String quoteValue (String value) {
-			value = value.replace("\\", "\\\\");
-			if (this == OutputType.minimal && !value.equals("true") && !value.equals("false") && !value.equals("null")
-				&& minimalPattern.matcher(value).matches()) return value;
-			return '"' + value.replace("\"", "\\\"") + '"';
+		public String quoteValue (Object value) {
+			if (value == null || value instanceof Number || value instanceof Boolean) return String.valueOf(value);
+			String string = String.valueOf(value).replace("\\", "\\\\").replace("\r", "\\r").replace("\n", "\\n")
+				.replace("\t", "\\t");
+			if (this == OutputType.minimal && !string.equals("true") && !string.equals("false") && !string.equals("null")
+				&& minimalValuePattern.matcher(string).matches()) return string;
+			return '"' + string.replace("\"", "\\\"") + '"';
 		}
 
 		public String quoteName (String value) {
-			value = value.replace("\\", "\\\\");
+			value = value.replace("\\", "\\\\").replace("\r", "\\r").replace("\n", "\\n").replace("\t", "\\t");
 			switch (this) {
 			case minimal:
-				if (minimalPattern.matcher(value).matches()) return value;
-				return '"' + value.replace("\"", "\\\"") + '"';
+				if (minimalNamePattern.matcher(value).matches()) return value;
 			case javascript:
 				if (javascriptPattern.matcher(value).matches()) return value;
-				return '"' + value.replace("\"", "\\\"") + '"';
-			default:
-				return '"' + value.replace("\"", "\\\"") + '"';
 			}
+			return '"' + value.replace("\"", "\\\"") + '"';
 		}
 	}
 }

@@ -19,18 +19,31 @@ package com.badlogic.gdx.backends.lwjgl;
 import com.badlogic.gdx.ApplicationListener;
 
 import java.awt.Dimension;
+import java.awt.EventQueue;
 import java.awt.Point;
 
 import javax.swing.JFrame;
 
 /** Wraps an {@link LwjglCanvas} in a resizable {@link JFrame}. */
 public class LwjglFrame extends JFrame {
-	final LwjglCanvas lwjglCanvas;
+	LwjglCanvas lwjglCanvas;
 
-	public LwjglFrame (ApplicationListener listener, String title, int width, int height, boolean useGL2) {
+	public LwjglFrame (ApplicationListener listener, String title, int width, int height) {
 		super(title);
+		LwjglApplicationConfiguration config = new LwjglApplicationConfiguration();
+		config.title = title;
+		config.width = width;
+		config.height = height;
+		construct(listener, config);
+	}
 
-		lwjglCanvas = new LwjglCanvas(listener, useGL2) {
+	public LwjglFrame (ApplicationListener listener, LwjglApplicationConfiguration config) {
+		super(config.title);
+		construct(listener, config);
+	}
+
+	private void construct (ApplicationListener listener, LwjglApplicationConfiguration config) {
+		lwjglCanvas = new LwjglCanvas(listener, config) {
 			protected void stopped () {
 				LwjglFrame.this.dispose();
 			}
@@ -54,8 +67,16 @@ public class LwjglFrame extends JFrame {
 			protected void start () {
 				LwjglFrame.this.start();
 			}
+
+			protected void exception (Throwable t) {
+				LwjglFrame.this.exception(t);
+			}
+
+			protected int getFrameRate () {
+				int frameRate = LwjglFrame.this.getFrameRate();
+				return frameRate == 0 ? super.getFrameRate() : frameRate;
+			}
 		};
-		getContentPane().add(lwjglCanvas.getCanvas());
 
 		Runtime.getRuntime().addShutdownHook(new Thread() {
 			public void run () {
@@ -64,18 +85,40 @@ public class LwjglFrame extends JFrame {
 		});
 
 		setDefaultCloseOperation(EXIT_ON_CLOSE);
-		getContentPane().setPreferredSize(new Dimension(width, height));
+		getContentPane().setPreferredSize(new Dimension(config.width, config.height));
+
 		initialize();
-		Dimension size = getSize();
-		if (size.width == 0 && size.height == 0) pack();
+		pack();
 		Point location = getLocation();
 		if (location.x == 0 && location.y == 0) setLocationRelativeTo(null);
-		setVisible(true);
-		lwjglCanvas.getCanvas().requestFocus();
+		lwjglCanvas.getCanvas().setSize(getSize());
+
+		// Finish with invokeLater so any LwjglFrame super constructor has a chance to initialize.
+		EventQueue.invokeLater(new Runnable() {
+			public void run () {
+				addCanvas();
+				setVisible(true);
+				lwjglCanvas.getCanvas().requestFocus();
+			}
+		});
 	}
 
-	/** Called before the JFrame is shown. */
+	protected int getFrameRate () {
+		return 0;
+	}
+
+	protected void exception (Throwable ex) {
+		ex.printStackTrace();
+		lwjglCanvas.stop();
+	}
+
+	/** Called before the JFrame is made displayable. */
 	protected void initialize () {
+	}
+
+	/** Adds the canvas to the content pane. This triggers addNotify and starts the canvas' game loop. */
+	protected void addCanvas () {
+		getContentPane().add(lwjglCanvas.getCanvas());
 	}
 
 	/** Called after {@link ApplicationListener} create and resize, but before the game loop iteration. */

@@ -16,7 +16,7 @@
 
 package com.badlogic.gdx.scenes.scene2d;
 
-import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.math.Matrix3;
 import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Rectangle;
@@ -49,21 +49,20 @@ public class Group extends Actor implements Cullable {
 		children.end();
 	}
 
-	/** Draws the group and its children. The default implementation calls {@link #applyTransform(SpriteBatch, Matrix4)} if needed,
-	 * then {@link #drawChildren(SpriteBatch, float)}, then {@link #resetTransform(SpriteBatch)} if needed. */
-	public void draw (SpriteBatch batch, float parentAlpha) {
+	/** Draws the group and its children. The default implementation calls {@link #applyTransform(Batch, Matrix4)} if needed, then
+	 * {@link #drawChildren(Batch, float)}, then {@link #resetTransform(Batch)} if needed. */
+	public void draw (Batch batch, float parentAlpha) {
 		if (transform) applyTransform(batch, computeTransform());
 		drawChildren(batch, parentAlpha);
 		if (transform) resetTransform(batch);
 	}
 
-	/** Draws all children. {@link #applyTransform(SpriteBatch, Matrix4)} should be called before and
-	 * {@link #resetTransform(SpriteBatch)} after this method if {@link #setTransform(boolean) transform} is true. If
-	 * {@link #setTransform(boolean) transform} is false these methods don't need to be called, children positions are temporarily
-	 * offset by the group position when drawn. This method avoids drawing children completely outside the
-	 * {@link #setCullingArea(Rectangle) culling area}, if set. */
-	protected void drawChildren (SpriteBatch batch, float parentAlpha) {
-		parentAlpha *= getColor().a;
+	/** Draws all children. {@link #applyTransform(Batch, Matrix4)} should be called before and {@link #resetTransform(Batch)} after
+	 * this method if {@link #setTransform(boolean) transform} is true. If {@link #setTransform(boolean) transform} is false these
+	 * methods don't need to be called, children positions are temporarily offset by the group position when drawn. This method
+	 * avoids drawing children completely outside the {@link #setCullingArea(Rectangle) culling area}, if set. */
+	protected void drawChildren (Batch batch, float parentAlpha) {
+		parentAlpha *= this.color.a;
 		SnapshotArray<Actor> children = this.children;
 		Actor[] actors = children.begin();
 		Rectangle cullingArea = this.cullingArea;
@@ -77,30 +76,30 @@ public class Group extends Actor implements Cullable {
 				for (int i = 0, n = children.size; i < n; i++) {
 					Actor child = actors[i];
 					if (!child.isVisible()) continue;
-					float x = child.getX(), y = child.getY();
-					if (x <= cullRight && y <= cullTop && x + child.getWidth() >= cullLeft && y + child.getHeight() >= cullBottom)
+					float cx = child.x, cy = child.y;
+					if (cx <= cullRight && cy <= cullTop && cx + child.width >= cullLeft && cy + child.height >= cullBottom)
 						child.draw(batch, parentAlpha);
 				}
 				batch.flush();
 			} else {
 				// No transform for this group, offset each child.
-				float offsetX = getX(), offsetY = getY();
-				setX(0);
-				setY(0);
+				float offsetX = x, offsetY = y;
+				x = 0;
+				y = 0;
 				for (int i = 0, n = children.size; i < n; i++) {
 					Actor child = actors[i];
 					if (!child.isVisible()) continue;
-					float x = child.getX(), y = child.getY();
-					if (x <= cullRight && y <= cullTop && x + child.getWidth() >= cullLeft && y + child.getHeight() >= cullBottom) {
-						child.setX(x + offsetX);
-						child.setY(y + offsetY);
+					float cx = child.x, cy = child.y;
+					if (cx <= cullRight && cy <= cullTop && cx + child.width >= cullLeft && cy + child.height >= cullBottom) {
+						child.x = cx + offsetX;
+						child.y = cy + offsetY;
 						child.draw(batch, parentAlpha);
-						child.setX(x);
-						child.setY(y);
+						child.x = cx;
+						child.y = cy;
 					}
 				}
-				setX(offsetX);
-				setY(offsetY);
+				x = offsetX;
+				y = offsetY;
 			}
 		} else {
 			// No culling, draw all children.
@@ -113,44 +112,42 @@ public class Group extends Actor implements Cullable {
 				batch.flush();
 			} else {
 				// No transform for this group, offset each child.
-				float offsetX = getX(), offsetY = getY();
-				setX(0);
-				setY(0);
+				float offsetX = x, offsetY = y;
+				x = 0;
+				y = 0;
 				for (int i = 0, n = children.size; i < n; i++) {
 					Actor child = actors[i];
 					if (!child.isVisible()) continue;
-					float x = child.getX(), y = child.getY();
-					child.setX(x + offsetX);
-					child.setY(y + offsetY);
+					float cx = child.x, cy = child.y;
+					child.x = cx + offsetX;
+					child.y = cy + offsetY;
 					child.draw(batch, parentAlpha);
-					child.setX(x);
-					child.setY(y);
+					child.x = cx;
+					child.y = cy;
 				}
-				setX(offsetX);
-				setY(offsetY);
+				x = offsetX;
+				y = offsetY;
 			}
 		}
 		children.end();
 	}
 
-	/** Set the SpriteBatch's transformation matrix, often with the result of {@link #computeTransform()}. Note this causes the
-	 * batch to be flushed. {@link #resetTransform(SpriteBatch)} will restore the transform to what it was before this call. */
-	protected void applyTransform (SpriteBatch batch, Matrix4 transform) {
-		batch.end();
+	/** Set the Batch's transformation matrix, often with the result of {@link #computeTransform()}. Note this causes the batch to
+	 * be flushed. {@link #resetTransform(Batch)} will restore the transform to what it was before this call. */
+	protected void applyTransform (Batch batch, Matrix4 transform) {
 		oldBatchTransform.set(batch.getTransformMatrix());
 		batch.setTransformMatrix(transform);
-		batch.begin();
 	}
 
 	/** Returns the transform for this group's coordinate system. */
 	protected Matrix4 computeTransform () {
 		Matrix3 temp = worldTransform;
 
-		float originX = getOriginX();
-		float originY = getOriginY();
-		float rotation = getRotation();
-		float scaleX = getScaleX();
-		float scaleY = getScaleY();
+		float originX = this.originX;
+		float originY = this.originY;
+		float rotation = this.rotation;
+		float scaleX = this.scaleX;
+		float scaleY = this.scaleY;
 
 		if (originX != 0 || originY != 0)
 			localTransform.setToTranslation(originX, originY);
@@ -159,7 +156,7 @@ public class Group extends Actor implements Cullable {
 		if (rotation != 0) localTransform.rotate(rotation);
 		if (scaleX != 1 || scaleY != 1) localTransform.scale(scaleX, scaleY);
 		if (originX != 0 || originY != 0) localTransform.translate(-originX, -originY);
-		localTransform.trn(getX(), getY());
+		localTransform.trn(x, y);
 
 		// Find the first parent that transforms.
 		Group parentGroup = getParent();
@@ -179,12 +176,10 @@ public class Group extends Actor implements Cullable {
 		return batchTransform;
 	}
 
-	/** Restores the SpriteBatch transform to what it was before {@link #applyTransform(SpriteBatch, Matrix4)}. Note this causes the
-	 * batch to be flushed. */
-	protected void resetTransform (SpriteBatch batch) {
-		batch.end();
+	/** Restores the Batch transform to what it was before {@link #applyTransform(Batch, Matrix4)}. Note this causes the batch to be
+	 * flushed. */
+	protected void resetTransform (Batch batch) {
 		batch.setTransformMatrix(oldBatchTransform);
-		batch.begin();
 	}
 
 	/** Children completely outside of this rectangle will not be drawn. This is only valid for use with unrotated and unscaled
@@ -210,7 +205,8 @@ public class Group extends Actor implements Cullable {
 	protected void childrenChanged () {
 	}
 
-	/** Adds an actor as a child of this group. The actor is first removed from its parent group, if any. */
+	/** Adds an actor as a child of this group. The actor is first removed from its parent group, if any.
+	 * @see #remove() */
 	public void addActor (Actor actor) {
 		actor.remove();
 		children.add(actor);
@@ -271,7 +267,7 @@ public class Group extends Actor implements Cullable {
 	}
 
 	/** Removes all actors from this group. */
-	public void clear () {
+	public void clearChildren () {
 		Actor[] actors = children.begin();
 		for (int i = 0, n = children.size; i < n; i++) {
 			Actor child = actors[i];
@@ -281,6 +277,12 @@ public class Group extends Actor implements Cullable {
 		children.end();
 		children.clear();
 		childrenChanged();
+	}
+
+	/** Removes all children, actions, and listeners from this group. */
+	public void clear () {
+		super.clear();
+		clearChildren();
 	}
 
 	/** Returns the first actor found with the specified name. Note this recursively compares the name of every actor in the group. */
@@ -328,11 +330,15 @@ public class Group extends Actor implements Cullable {
 		return children;
 	}
 
-	/** When true (the default), the SpriteBatch is transformed so children are drawn in their parent's coordinate system. This has
-	 * a performance impact because {@link SpriteBatch#flush()} must be done before and after the transform. If the actors in a
-	 * group are not rotated or scaled, then the transform for the group can be set to false. In this case, each child's position
-	 * will be offset by the group's position for drawing, causing the children to appear in the correct location even though the
-	 * SpriteBatch has not been transformed. */
+	public boolean hasChildren () {
+		return children.size > 0;
+	}
+
+	/** When true (the default), the Batch is transformed so children are drawn in their parent's coordinate system. This has a
+	 * performance impact because {@link Batch#flush()} must be done before and after the transform. If the actors in a group are
+	 * not rotated or scaled, then the transform for the group can be set to false. In this case, each child's position will be
+	 * offset by the group's position for drawing, causing the children to appear in the correct location even though the Batch has
+	 * not been transformed. */
 	public void setTransform (boolean transform) {
 		this.transform = transform;
 	}
@@ -351,5 +357,19 @@ public class Group extends Actor implements Cullable {
 		// Then from each parent down to the descendant.
 		descendant.parentToLocalCoordinates(localCoords);
 		return localCoords;
+	}
+
+	/** Prints the actor hierarchy recursively for debugging purposes. */
+	public void print () {
+		print("");
+	}
+
+	private void print (String indent) {
+		Actor[] actors = children.begin();
+		for (int i = 0, n = children.size; i < n; i++) {
+			System.out.println(indent + actors[i]);
+			if (actors[i] instanceof Group) ((Group)actors[i]).print(indent + "|  ");
+		}
+		children.end();
 	}
 }

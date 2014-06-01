@@ -35,11 +35,15 @@ public class GwtApplicationConfiguration {
 	public Panel rootPanel;
 	/** the id of a canvas element to be used as the drawing area, can be null in which case a Panel and Canvas are added to the
 	 * body element of the DOM **/
-	public String canavsId;
+	public String canvasId;
 	/** a TextArea to log messages to, can be null in which case a TextArea will be added to the body element of the DOM. */
 	public TextArea log;
 	/** whether to use debugging mode for OpenGL calls. Errors will result in a RuntimeException being thrown. */
 	public boolean useDebugGL = false;
+	/** whether SoundManager2 should prefer to use flash instead of html5 audio (it should fall back if not available) */
+	public boolean preferFlash = true;
+	/** preserve the back buffer, needed if you fetch a screenshot via canvas#toDataUrl, may have performance impact **/
+	public boolean preserveDrawingBuffer = false;
 
 	public GwtApplicationConfiguration (int width, int height) {
 		this.width = width;

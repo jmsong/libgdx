@@ -33,9 +33,7 @@ import com.esotericsoftware.tablelayout.Toolkit;
 import com.esotericsoftware.tablelayout.Value;
 
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import com.badlogic.gdx.math.Matrix4;
-import com.badlogic.gdx.math.Rectangle;
+import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.Group;
 import com.badlogic.gdx.scenes.scene2d.Stage;
@@ -43,7 +41,6 @@ import com.badlogic.gdx.scenes.scene2d.Touchable;
 import com.badlogic.gdx.scenes.scene2d.ui.Label.LabelStyle;
 import com.badlogic.gdx.scenes.scene2d.utils.Align;
 import com.badlogic.gdx.scenes.scene2d.utils.Drawable;
-import com.badlogic.gdx.scenes.scene2d.utils.ScissorStack;
 import com.badlogic.gdx.utils.Array;
 
 import java.util.List;
@@ -55,7 +52,7 @@ import java.util.List;
  * @author Nathan Sweet */
 public class Table extends WidgetGroup {
 	static {
-		Toolkit.instance = new TableToolkit();
+		if (Toolkit.instance == null) Toolkit.instance = new TableToolkit();
 	}
 
 	private final TableLayout layout;
@@ -76,48 +73,41 @@ public class Table extends WidgetGroup {
 		setTouchable(Touchable.childrenOnly);
 	}
 
-	public void draw (SpriteBatch batch, float parentAlpha) {
+	public void draw (Batch batch, float parentAlpha) {
 		validate();
-		drawBackground(batch, parentAlpha);
 		if (isTransform()) {
 			applyTransform(batch, computeTransform());
+			drawBackground(batch, parentAlpha, 0, 0);
 			if (clip) {
-				if (ScissorStack.pushScissors(calculateScissors(batch.getTransformMatrix()))) {
+				batch.flush();
+				float x = 0, y = 0, width = getWidth(), height = getHeight();
+				if (background != null) {
+					x = layout.getPadLeft();
+					y = layout.getPadBottom();
+					width -= layout.getPadLeft() + layout.getPadRight();
+					height -= layout.getPadBottom() + layout.getPadTop();
+				}
+				boolean draw = clipBegin(x, y, width, height);
+				if (draw) {
 					drawChildren(batch, parentAlpha);
-					ScissorStack.popScissors();
+					clipEnd();
 				}
 			} else
 				drawChildren(batch, parentAlpha);
 			resetTransform(batch);
-		} else
+		} else {
+			drawBackground(batch, parentAlpha, getX(), getY());
 			super.draw(batch, parentAlpha);
+		}
 	}
 
 	/** Called to draw the background, before clipping is applied (if enabled). Default implementation draws the background
 	 * drawable. */
-	protected void drawBackground (SpriteBatch batch, float parentAlpha) {
-		if (background != null) {
-			Color color = getColor();
-			batch.setColor(color.r, color.g, color.b, color.a * parentAlpha);
-			background.draw(batch, getX(), getY(), getWidth(), getHeight());
-		}
-	}
-
-	private Rectangle calculateScissors (Matrix4 transform) {
-		Rectangle tableBounds = Rectangle.tmp;
-		tableBounds.width = getWidth();
-		tableBounds.height = getHeight();
-		if (background == null) {
-			tableBounds.x = 0;
-			tableBounds.y = 0;
-		} else {
-			tableBounds.x = layout.getPadLeft();
-			tableBounds.y = layout.getPadBottom();
-			tableBounds.width -= tableBounds.x + layout.getPadRight();
-			tableBounds.height -= tableBounds.y + layout.getPadTop();
-		}
-		ScissorStack.calculateScissors(getStage().getCamera(), transform, tableBounds, Rectangle.tmp2);
-		return Rectangle.tmp2;
+	protected void drawBackground (Batch batch, float parentAlpha, float x, float y) {
+		if (background == null) return;
+		Color color = getColor();
+		batch.setColor(color.r, color.g, color.b, color.a * parentAlpha);
+		background.draw(batch, x, y, getWidth(), getHeight());
 	}
 
 	public void invalidate () {
@@ -143,21 +133,44 @@ public class Table extends WidgetGroup {
 		return layout.getMinHeight();
 	}
 
-	/** Sets the background drawable and sets the table's padding to {@link Drawable#getBottomHeight()} ,
-	 * {@link Drawable#getTopHeight()}, {@link Drawable#getLeftWidth()}, and {@link Drawable#getRightWidth()}.
-	 * @param background If null, the background will be cleared and all padding is removed. */
+	/** Sets the background drawable from the skin and adjusts the table's padding to match the background. This may only be called
+	 * if {@link Table#Table(Skin)} or {@link #setSkin(Skin)} was used.
+	 * @see #setBackground(Drawable, boolean) */
+	public void setBackground (String drawableName) {
+		setBackground(skin.getDrawable(drawableName), true);
+	}
+
+	/** Sets the background drawable and adjusts the table's padding to match the background.
+	 * @see #setBackground(Drawable, boolean) */
 	public void setBackground (Drawable background) {
+		setBackground(background, true);
+	}
+
+	/** Sets the background drawable and, if adjustPadding is true, sets the table's padding to {@link Drawable#getBottomHeight()} ,
+	 * {@link Drawable#getTopHeight()}, {@link Drawable#getLeftWidth()}, and {@link Drawable#getRightWidth()}.
+	 * @param background If null, the background will be cleared and padding removed. */
+	public void setBackground (Drawable background, boolean adjustPadding) {
 		if (this.background == background) return;
 		this.background = background;
-		if (background == null)
-			pad(null);
-		else {
-			padBottom(background.getBottomHeight());
-			padTop(background.getTopHeight());
-			padLeft(background.getLeftWidth());
-			padRight(background.getRightWidth());
+		if (adjustPadding) {
+			if (background == null)
+				pad(null);
+			else
+				pad(background.getTopHeight(), background.getLeftWidth(), background.getBottomHeight(), background.getRightWidth());
 			invalidate();
 		}
+	}
+
+	/** @see #setBackground(Drawable) */
+	public Table background (Drawable background) {
+		setBackground(background);
+		return this;
+	}
+
+	/** @see #setBackground(String) */
+	public Table background (String drawableName) {
+		setBackground(drawableName);
+		return this;
 	}
 
 	public Drawable getBackground () {
@@ -166,6 +179,7 @@ public class Table extends WidgetGroup {
 
 	public Actor hit (float x, float y, boolean touchable) {
 		if (clip) {
+			if (touchable && getTouchable() == Touchable.disabled) return null;
 			if (x < 0 || x >= getWidth() || y < 0 || y >= getHeight()) return null;
 		}
 		return super.hit(x, y, touchable);
@@ -179,56 +193,72 @@ public class Table extends WidgetGroup {
 		invalidate();
 	}
 
+	public boolean getClip () {
+		return clip;
+	}
+
 	/** Returns the row index for the y coordinate. */
 	public int getRow (float y) {
 		return layout.getRow(y);
 	}
 
 	/** Removes all actors and cells from the table. */
-	public void clear () {
-		super.clear();
+	public void clearChildren () {
+		super.clearChildren();
 		layout.clear();
 		invalidate();
 	}
 
 	/** Adds a new cell with a label. This may only be called if {@link Table#Table(Skin)} or {@link #setSkin(Skin)} was used. */
-	public Cell add (String text) {
+	public Cell<Label> add (String text) {
 		if (skin == null) throw new IllegalStateException("Table must have a skin set to use this method.");
 		return add(new Label(text, skin));
 	}
 
 	/** Adds a new cell with a label. This may only be called if {@link Table#Table(Skin)} or {@link #setSkin(Skin)} was used. */
-	public Cell add (String text, String labelStyleName) {
+	public Cell<Label> add (String text, String labelStyleName) {
 		if (skin == null) throw new IllegalStateException("Table must have a skin set to use this method.");
 		return add(new Label(text, skin.get(labelStyleName, LabelStyle.class)));
 	}
 
 	/** Adds a new cell with a label. This may only be called if {@link Table#Table(Skin)} or {@link #setSkin(Skin)} was used. */
-	public Cell add (String text, String fontName, Color color) {
+	public Cell<Label> add (String text, String fontName, Color color) {
 		if (skin == null) throw new IllegalStateException("Table must have a skin set to use this method.");
 		return add(new Label(text, new LabelStyle(skin.getFont(fontName), color)));
 	}
 
 	/** Adds a new cell with a label. This may only be called if {@link Table#Table(Skin)} or {@link #setSkin(Skin)} was used. */
-	public Cell add (String text, String fontName, String colorName) {
+	public Cell<Label> add (String text, String fontName, String colorName) {
 		if (skin == null) throw new IllegalStateException("Table must have a skin set to use this method.");
 		return add(new Label(text, new LabelStyle(skin.getFont(fontName), skin.getColor(colorName))));
 	}
 
 	/** Adds a cell without a widget. */
-	public Cell add () {
+	public Cell<Actor> add () {
 		return layout.add(null);
 	}
 
 	/** Adds a new cell to the table with the specified actor.
 	 * @param actor May be null to add a cell without an actor. */
-	public Cell add (Actor actor) {
-		return layout.add(actor);
+	public <T extends Actor> Cell<T> add (T actor) {
+		return (Cell<T>)layout.add(actor);
+	}
+
+	public void add (Actor... actors) {
+		for (int i = 0, n = actors.length; i < n; i++)
+			layout.add(actors[i]);
+	}
+
+	public boolean removeActor (Actor actor) {
+		if (!super.removeActor(actor)) return false;
+		Cell cell = getCell(actor);
+		if (cell != null) cell.setWidget(null);
+		return true;
 	}
 
 	/** Adds a new cell to the table with the specified actors in a {@link Stack}.
 	 * @param actors May be null to add a stack without any actors. */
-	public Cell stack (Actor... actors) {
+	public Cell<Stack> stack (Actor... actors) {
 		Stack stack = new Stack();
 		if (actors != null) {
 			for (int i = 0, n = actors.length; i < n; i++)
@@ -258,15 +288,15 @@ public class Table extends WidgetGroup {
 		layout.layout();
 	}
 
-	/** Removes all actors and cells from the table (same as {@link #clear()}) and additionally resets all table properties and
-	 * cell, column, and row defaults. */
+	/** Removes all actors and cells from the table (same as {@link #clearChildren()}) and additionally resets all table properties
+	 * and cell, column, and row defaults. */
 	public void reset () {
 		layout.reset();
 	}
 
 	/** Returns the cell for the specified widget in this table, or null. */
-	public Cell getCell (Actor actor) {
-		return layout.getCell(actor);
+	public <T extends Actor> Cell<T> getCell (T actor) {
+		return (Cell<T>)layout.getCell(actor);
 	}
 
 	/** Returns the cells for this table. */
@@ -475,12 +505,13 @@ public class Table extends WidgetGroup {
 	 * debug set, calling this method causes an expensive traversal of all actors in the stage. */
 	static public void drawDebug (Stage stage) {
 		if (!TableToolkit.drawDebug) return;
-		drawDebug(stage.getActors(), stage.getSpriteBatch());
+		drawDebug(stage.getActors(), stage.getBatch());
 	}
 
-	static private void drawDebug (Array<Actor> actors, SpriteBatch batch) {
+	static private void drawDebug (Array<Actor> actors, Batch batch) {
 		for (int i = 0, n = actors.size; i < n; i++) {
 			Actor actor = actors.get(i);
+			if (!actor.isVisible()) continue;
 			if (actor instanceof Table) ((Table)actor).layout.drawDebug(batch);
 			if (actor instanceof Group) drawDebug(((Group)actor).getChildren(), batch);
 		}

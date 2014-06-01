@@ -34,6 +34,10 @@ import com.esotericsoftware.tablelayout.BaseTableLayout.Debug;
 public abstract class Toolkit<C, T extends C, L extends BaseTableLayout> {
 	static public Toolkit instance;
 
+	abstract public Cell<C> obtainCell (L layout);
+
+	abstract public void freeCell (Cell cell);
+
 	abstract public void addChild (C parent, C child);
 
 	abstract public void removeChild (C parent, C child);
@@ -62,6 +66,7 @@ public abstract class Toolkit<C, T extends C, L extends BaseTableLayout> {
 
 	/** @param widget May be null. */
 	public void setWidget (L layout, Cell cell, C widget) {
+		if (cell.widget == widget) return;
 		removeChild((T)layout.table, (C)cell.widget);
 		cell.widget = widget;
 		if (widget != null) addChild((T)layout.table, widget);

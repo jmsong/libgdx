@@ -29,7 +29,7 @@ public class PerspectiveCamera extends Camera {
 	public PerspectiveCamera () {
 	}
 
-	/** Constructs a new {@link PerspectiveCamera} with the given field of view and viewport size. The apsect ratio is derrived from
+	/** Constructs a new {@link PerspectiveCamera} with the given field of view and viewport size. The aspect ratio is derived from
 	 * the viewport size.
 	 * 
 	 * @param fieldOfView the field of view in degrees
@@ -46,14 +46,7 @@ public class PerspectiveCamera extends Camera {
 
 	@Override
 	public void update () {
-		float aspect = viewportWidth / viewportHeight;
-		projection.setToProjection(Math.abs(near), Math.abs(far), fieldOfView, aspect);
-		view.setToLookAt(position, tmp.set(position).add(direction), up);
-		combined.set(projection);
-		Matrix4.mul(combined.val, view.val);
-		invProjectionView.set(combined);
-		Matrix4.inv(invProjectionView.val);
-		frustum.update(invProjectionView);
+		update(true);
 	}
 
 	@Override

@@ -22,7 +22,7 @@ import java.util.List;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.GL10;
+import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.Texture.TextureFilter;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
@@ -67,7 +67,7 @@ public class StageTest extends GdxTest implements InputProcessor {
 		texture.setFilter(TextureFilter.Linear, TextureFilter.Linear);
 		font = new BitmapFont(Gdx.files.internal("data/arial-15.fnt"), false);
 
-		stage = new Stage(480, 320, true);
+		stage = new Stage();
 
 		float loc = (NUM_SPRITES * (32 + SPACING) - SPACING) / 2;
 		for (int i = 0; i < NUM_GROUPS; i++) {
@@ -82,17 +82,17 @@ public class StageTest extends GdxTest implements InputProcessor {
 
 		uiTexture = new Texture(Gdx.files.internal("data/ui.png"));
 		uiTexture.setFilter(TextureFilter.Linear, TextureFilter.Linear);
-		ui = new Stage(480, 320, false);
+		ui = new Stage();
 
 		Image blend = new Image(new TextureRegion(uiTexture, 0, 0, 64, 32));
 		blend.setAlign(Align.center);
 		blend.setScaling(Scaling.none);
 		blend.addListener(new InputListener() {
 			public boolean touchDown (InputEvent event, float x, float y, int pointer, int button) {
-				if (stage.getSpriteBatch().isBlendingEnabled())
-					stage.getSpriteBatch().disableBlending();
+				if (stage.getBatch().isBlendingEnabled())
+					stage.getBatch().disableBlending();
 				else
-					stage.getSpriteBatch().enableBlending();
+					stage.getBatch().enableBlending();
 				return true;
 			}
 		});
@@ -147,14 +147,15 @@ public class StageTest extends GdxTest implements InputProcessor {
 			}
 	}
 
+	private final Vector2 stageCoords = new Vector2();
+
 	@Override
 	public void render () {
 		Gdx.gl.glViewport(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
 		Gdx.gl.glClearColor(0.2f, 0.2f, 0.2f, 1);
-		Gdx.gl.glClear(GL10.GL_COLOR_BUFFER_BIT);
+		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
 		if (Gdx.input.isTouched()) {
-			Vector2 stageCoords = Vector2.tmp;
 			stage.screenToStageCoordinates(stageCoords.set(Gdx.input.getX(), Gdx.input.getY()));
 			Actor actor = stage.hit(stageCoords.x, stageCoords.y, true);
 			if (actor instanceof Image)
@@ -166,7 +167,7 @@ public class StageTest extends GdxTest implements InputProcessor {
 		int len = actors.size;
 		if (rotateSprites) {
 			for (int i = 0; i < len; i++)
-				actors.get(i).rotate(Gdx.graphics.getDeltaTime() * 10);
+				actors.get(i).rotateBy(Gdx.graphics.getDeltaTime() * 10);
 		}
 
 		scale += vScale * Gdx.graphics.getDeltaTime();
@@ -183,7 +184,7 @@ public class StageTest extends GdxTest implements InputProcessor {
 		for (int i = 0; i < len; i++) {
 			Image img = images.get(i);
 			if (rotateSprites)
-				img.rotate(-40 * Gdx.graphics.getDeltaTime());
+				img.rotateBy(-40 * Gdx.graphics.getDeltaTime());
 			else
 				img.setRotation(0);
 

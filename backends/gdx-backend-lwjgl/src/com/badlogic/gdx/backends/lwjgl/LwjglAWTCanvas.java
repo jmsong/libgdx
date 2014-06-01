@@ -36,8 +36,11 @@ import com.badlogic.gdx.Files;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Graphics;
 import com.badlogic.gdx.Input;
+import com.badlogic.gdx.LifecycleListener;
+import com.badlogic.gdx.Net;
 import com.badlogic.gdx.Preferences;
-import com.badlogic.gdx.backends.openal.OpenALAudio;
+import com.badlogic.gdx.backends.lwjgl.audio.OpenALAudio;
+import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.Clipboard;
 import com.badlogic.gdx.utils.GdxRuntimeException;
 
@@ -50,21 +53,23 @@ public class LwjglAWTCanvas implements Application {
 	final OpenALAudio audio;
 	final LwjglFiles files;
 	final LwjglAWTInput input;
+	final LwjglNet net;
 	final ApplicationListener listener;
 	final AWTGLCanvas canvas;
 	final List<Runnable> runnables = new ArrayList();
 	final List<Runnable> executedRunnables = new ArrayList();
+	final Array<LifecycleListener> lifecycleListeners = new Array<LifecycleListener>();
 	boolean running = true;
 	int lastWidth;
 	int lastHeight;
 	int logLevel = LOG_INFO;
 	private Cursor cursor;
 
-	public LwjglAWTCanvas (ApplicationListener listener, boolean useGL2) {
-		this(listener, useGL2, null);
+	public LwjglAWTCanvas (ApplicationListener listener) {
+		this(listener, null);
 	}
 
-	public LwjglAWTCanvas (ApplicationListener listener, boolean useGL2, LwjglAWTCanvas sharedContextCanvas) {
+	public LwjglAWTCanvas (ApplicationListener listener, LwjglAWTCanvas sharedContextCanvas) {
 		LwjglNativesLoader.load();
 
 		AWTGLCanvas sharedDrawable = sharedContextCanvas != null ? sharedContextCanvas.canvas : null;
@@ -97,7 +102,7 @@ public class LwjglAWTCanvas implements Application {
 			throw new GdxRuntimeException(ex);
 		}
 
-		graphics = new LwjglGraphics(canvas, useGL2) {
+		graphics = new LwjglGraphics(canvas) {
 			public void setTitle (String title) {
 				super.setTitle(title);
 				LwjglAWTCanvas.this.setTitle(title);
@@ -115,7 +120,7 @@ public class LwjglAWTCanvas implements Application {
 				return true;
 			}
 		};
-		if (Gdx.audio == null) {
+		if (!LwjglApplicationConfiguration.disableAudio && Gdx.audio == null) {
 			audio = new OpenALAudio();
 			Gdx.audio = audio;
 		} else {
@@ -127,6 +132,12 @@ public class LwjglAWTCanvas implements Application {
 		} else {
 			files = null;
 		}
+		if (Gdx.net == null) {
+			net = new LwjglNet();
+			Gdx.net = net;
+		} else {
+			net = null;
+		}
 		input = new LwjglAWTInput(canvas);
 		this.listener = listener;
 
@@ -137,6 +148,11 @@ public class LwjglAWTCanvas implements Application {
 	}
 
 	protected void setTitle (String title) {
+	}
+
+	@Override
+	public ApplicationListener getApplicationListener () {
+		return listener;
 	}
 
 	public Canvas getCanvas () {
@@ -164,6 +180,11 @@ public class LwjglAWTCanvas implements Application {
 	}
 
 	@Override
+	public Net getNet () {
+		return net;
+	}
+
+	@Override
 	public ApplicationType getType () {
 		return ApplicationType.Desktop;
 	}
@@ -177,6 +198,7 @@ public class LwjglAWTCanvas implements Application {
 		Gdx.app = this;
 		if (audio != null) Gdx.audio = audio;
 		if (files != null) Gdx.files = files;
+		if (net != null) Gdx.net = net;
 		Gdx.graphics = graphics;
 		Gdx.input = input;
 	}
@@ -197,9 +219,22 @@ public class LwjglAWTCanvas implements Application {
 	}
 
 	void render () {
+		if (!running) return;
+		
 		setGlobals();
 		canvas.setCursor(cursor);
 		graphics.updateTime();
+
+		int width = Math.max(1, graphics.getWidth());
+		int height = Math.max(1, graphics.getHeight());
+		if (lastWidth != width || lastHeight != height) {
+			lastWidth = width;
+			lastHeight = height;
+			Gdx.gl.glViewport(0, 0, lastWidth, lastHeight);
+			resize(width, height);
+			listener.resize(width, height);
+		}
+
 		synchronized (runnables) {
 			executedRunnables.clear();
 			executedRunnables.addAll(runnables);
@@ -214,15 +249,6 @@ public class LwjglAWTCanvas implements Application {
 			}
 		}
 
-		int width = Math.max(1, graphics.getWidth());
-		int height = Math.max(1, graphics.getHeight());
-		if (lastWidth != width || lastHeight != height) {
-			lastWidth = width;
-			lastHeight = height;
-			Gdx.gl.glViewport(0, 0, lastWidth, lastHeight);
-			resize(width, height);
-			listener.resize(width, height);
-		}
 		input.processEvents();
 		if (running) {
 			listener.render();
@@ -248,8 +274,30 @@ public class LwjglAWTCanvas implements Application {
 		if (!running) return;
 		running = false;
 		setGlobals();
+		Array<LifecycleListener> listeners = lifecycleListeners;
+		synchronized (listeners) {
+			for (LifecycleListener listener : listeners) {
+				listener.pause();
+				listener.dispose();
+			}
+		}
 		listener.pause();
 		listener.dispose();
+
+		Gdx.app = null;
+		
+		Gdx.graphics = null;
+		
+		if (audio != null) {
+			audio.dispose();
+			Gdx.audio = null;
+		}
+
+		if (files != null) Gdx.files = null;
+
+		if (net != null) Gdx.net = null;
+		
+		stopped();
 	}
 
 	@Override
@@ -269,7 +317,7 @@ public class LwjglAWTCanvas implements Application {
 		if (preferences.containsKey(name)) {
 			return preferences.get(name);
 		} else {
-			Preferences prefs = new LwjglPreferences(name);
+			Preferences prefs = new LwjglPreferences(name, ".prefs/");
 			preferences.put(name, prefs);
 			return prefs;
 		}
@@ -309,7 +357,7 @@ public class LwjglAWTCanvas implements Application {
 	}
 
 	@Override
-	public void log (String tag, String message, Exception exception) {
+	public void log (String tag, String message, Throwable exception) {
 		if (logLevel >= LOG_INFO) {
 			System.out.println(tag + ": " + message);
 			exception.printStackTrace(System.out);
@@ -337,13 +385,16 @@ public class LwjglAWTCanvas implements Application {
 	}
 
 	@Override
+	public int getLogLevel() {
+		return logLevel;
+	}
+
+	@Override
 	public void exit () {
 		postRunnable(new Runnable() {
 			@Override
 			public void run () {
-				setGlobals();
-				LwjglAWTCanvas.this.listener.pause();
-				LwjglAWTCanvas.this.listener.dispose();
+				stop();
 				System.exit(-1);
 			}
 		});
@@ -360,8 +411,31 @@ public class LwjglAWTCanvas implements Application {
 		}
 	}
 
+	/** Test whether the canvas' context is current. */
+	public boolean isCurrent () {
+		try {
+			return canvas.isCurrent();
+		} catch (LWJGLException ex) {
+			throw new GdxRuntimeException(ex);
+		}
+	}
+
 	/** @param cursor May be null. */
 	public void setCursor (Cursor cursor) {
 		this.cursor = cursor;
+	}
+
+	@Override
+	public void addLifecycleListener (LifecycleListener listener) {
+		synchronized (lifecycleListeners) {
+			lifecycleListeners.add(listener);
+		}
+	}
+
+	@Override
+	public void removeLifecycleListener (LifecycleListener listener) {
+		synchronized (lifecycleListeners) {
+			lifecycleListeners.removeValue(listener, true);
+		}
 	}
 }

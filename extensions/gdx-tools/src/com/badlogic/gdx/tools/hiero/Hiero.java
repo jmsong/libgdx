@@ -95,6 +95,7 @@ import com.badlogic.gdx.tools.hiero.unicodefont.UnicodeFont;
 import com.badlogic.gdx.tools.hiero.unicodefont.effects.ColorEffect;
 import com.badlogic.gdx.tools.hiero.unicodefont.effects.ConfigurableEffect;
 import com.badlogic.gdx.tools.hiero.unicodefont.effects.ConfigurableEffect.Value;
+import com.badlogic.gdx.tools.hiero.unicodefont.effects.DistanceFieldEffect;
 import com.badlogic.gdx.tools.hiero.unicodefont.effects.EffectUtil;
 import com.badlogic.gdx.tools.hiero.unicodefont.effects.GradientEffect;
 import com.badlogic.gdx.tools.hiero.unicodefont.effects.OutlineEffect;
@@ -168,7 +169,7 @@ public class Hiero extends JFrame {
 		initialize();
 		splash.close();
 
-		gamePanel.add(new LwjglCanvas(new Renderer(), false).getCanvas());
+		gamePanel.add(new LwjglCanvas(new Renderer()).getCanvas());
 
 		prefs = Preferences.userNodeForPackage(Hiero.class);
 		java.awt.Color backgroundColor = EffectUtil.fromString(prefs.get("background", "000000"));
@@ -187,6 +188,7 @@ public class Hiero extends JFrame {
 		effectsListModel.addElement(new OutlineWobbleEffect());
 		effectsListModel.addElement(new OutlineZigzagEffect());
 		effectsListModel.addElement(new ShadowEffect());
+		effectsListModel.addElement(new DistanceFieldEffect());
 		new EffectPanel(colorEffect);
 
 		addWindowListener(new WindowAdapter() {
@@ -266,6 +268,7 @@ public class Hiero extends JFrame {
 
 	void save (File file) throws IOException {
 		HieroSettings settings = new HieroSettings();
+		settings.setFontName((String)fontList.getSelectedValue());
 		settings.setFontSize(((Integer)fontSizeSpinner.getValue()).intValue());
 		settings.setBold(boldCheckBox.isSelected());
 		settings.setItalic(italicCheckBox.isSelected());
@@ -291,6 +294,7 @@ public class Hiero extends JFrame {
 			panels[i].remove();
 
 		HieroSettings settings = new HieroSettings(file.getAbsolutePath());
+		fontList.setSelectedValue(settings.getFontName(), true);
 		fontSizeSpinner.setValue(new Integer(settings.getFontSize()));
 		boldCheckBox.setSelected(settings.isBold());
 		italicCheckBox.setSelected(settings.isItalic());
@@ -894,7 +898,7 @@ public class Hiero extends JFrame {
 					effectsList = new JList();
 					effectsScroll.setViewportView(effectsList);
 					effectsList.setModel(effectsListModel);
-					effectsList.setVisibleRowCount(6);
+					effectsList.setVisibleRowCount(7);
 					effectsScroll.setMinimumSize(effectsList.getPreferredScrollableViewportSize());
 				}
 			}

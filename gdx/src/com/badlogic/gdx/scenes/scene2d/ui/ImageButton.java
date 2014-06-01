@@ -16,9 +16,10 @@
 
 package com.badlogic.gdx.scenes.scene2d.ui;
 
-import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.scenes.scene2d.utils.Drawable;
 import com.badlogic.gdx.utils.Scaling;
+
 import com.esotericsoftware.tablelayout.Cell;
 
 /** A button with a child {@link Image} to display an image. This is useful when the button must be larger than the image and the
@@ -44,8 +45,7 @@ public class ImageButton extends Button {
 		image.setScaling(Scaling.fit);
 		add(image);
 		setStyle(style);
-		setWidth(getPrefWidth());
-		setHeight(getPrefHeight());
+		setSize(getPrefWidth(), getPrefHeight());
 	}
 
 	public ImageButton (Drawable imageUp) {
@@ -78,12 +78,14 @@ public class ImageButton extends Button {
 		else if (isPressed && style.imageDown != null)
 			image.setDrawable(style.imageDown);
 		else if (isChecked && style.imageChecked != null)
-			image.setDrawable(style.imageChecked);
+			image.setDrawable((style.imageCheckedOver != null && isOver()) ? style.imageCheckedOver : style.imageChecked);
+		else if (isOver() && style.imageOver != null)
+			image.setDrawable(style.imageOver);
 		else if (style.imageUp != null) //
 			image.setDrawable(style.imageUp);
 	}
 
-	public void draw (SpriteBatch batch, float parentAlpha) {
+	public void draw (Batch batch, float parentAlpha) {
 		updateImage();
 		super.draw(batch, parentAlpha);
 	}
@@ -100,7 +102,7 @@ public class ImageButton extends Button {
 	 * @author Nathan Sweet */
 	static public class ImageButtonStyle extends ButtonStyle {
 		/** Optional. */
-		public Drawable imageUp, imageDown, imageChecked, imageDisabled;
+		public Drawable imageUp, imageDown, imageOver, imageChecked, imageCheckedOver, imageDisabled;
 
 		public ImageButtonStyle () {
 		}
@@ -117,7 +119,10 @@ public class ImageButton extends Button {
 			super(style);
 			this.imageUp = style.imageUp;
 			this.imageDown = style.imageDown;
+			this.imageOver = style.imageOver;
 			this.imageChecked = style.imageChecked;
+			this.imageCheckedOver = style.imageCheckedOver;
+			this.imageDisabled = style.imageDisabled;
 		}
 
 		public ImageButtonStyle (ButtonStyle style) {

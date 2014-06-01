@@ -16,7 +16,7 @@
 
 package com.badlogic.gdx.scenes.scene2d.utils;
 
-import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 
@@ -40,16 +40,15 @@ public interface Layout {
 
 	/** Ensures the actor has been laid out. Calls {@link #layout()} if {@link #invalidate()} has called since the last time
 	 * {@link #validate()} was called, or if the actor otherwise needs to be laid out. This method is usually called in
-	 * {@link Actor#draw(SpriteBatch, float)} before drawing is performed. */
+	 * {@link Actor#draw(Batch, float)} before drawing is performed. */
 	public void validate ();
 
-	/** Sizes this actor to its preferred width and height and, if this changed the size, causes the actor to be laid out by calling
-	 * {@link #invalidate()} then {@link #validate()}.
+	/** Sizes this actor to its preferred width and height, then calls {@link #validate()}.
 	 * <p>
 	 * Generally this method should not be called in an actor's constructor because it calls {@link #layout()}, which means a
-	 * subclass would have layout() called before the subclass' constructor. Instead, in constructors, simply set the actors width
-	 * and height to {@link #getPrefWidth()} and {@link #getPrefHeight()}. This allows the actor to have a size at construction
-	 * time for more convenient use outside of a {@link Table}. */
+	 * subclass would have layout() called before the subclass' constructor. Instead, in constructors, simply set the actor's size
+	 * to {@link #getPrefWidth()} and {@link #getPrefHeight()}. This allows the actor to have a size at construction time for more
+	 * convenient use outside of a {@link Table}. */
 	public void pack ();
 
 	/** If true, this actor will be sized to the parent in {@link #validate()}. If the parent is the stage, the actor will be sized
@@ -68,7 +67,9 @@ public interface Layout {
 
 	public float getPrefHeight ();
 
+	/** Zero indicates no max width. */
 	public float getMaxWidth ();
 
+	/** Zero indicates no max height. */
 	public float getMaxHeight ();
 }

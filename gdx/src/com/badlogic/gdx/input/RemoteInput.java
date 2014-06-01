@@ -27,6 +27,7 @@ import java.util.Set;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputProcessor;
+import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.utils.GdxRuntimeException;
 
 /** <p>
@@ -47,6 +48,12 @@ import com.badlogic.gdx.utils.GdxRuntimeException;
  * 
  * @author mzechner */
 public class RemoteInput implements Runnable, Input {
+	public interface RemoteInputListener {
+		void onConnected ();
+
+		void onDisconnected ();
+	}
+
 	class KeyEvent {
 		static final int KEY_DOWN = 0;
 		static final int KEY_UP = 1;
@@ -143,6 +150,8 @@ public class RemoteInput implements Runnable, Input {
 	private boolean multiTouch = false;
 	private float remoteWidth = 0;
 	private float remoteHeight = 0;
+	private boolean connected = false;
+	private RemoteInputListener listener;
 	Set<Integer> keys = new HashSet<Integer>();
 	int[] touchX = new int[20];
 	int[] touchY = new int[20];
@@ -156,7 +165,16 @@ public class RemoteInput implements Runnable, Input {
 		this(DEFAULT_PORT);
 	}
 
+	public RemoteInput (RemoteInputListener listener) {
+		this(DEFAULT_PORT, listener);
+	}
+
 	public RemoteInput (int port) {
+		this(port, null);
+	}
+
+	public RemoteInput (int port, RemoteInputListener listener) {
+		this.listener = listener;
 		try {
 			this.port = port;
 			serverSocket = new ServerSocket(port);
@@ -177,14 +195,17 @@ public class RemoteInput implements Runnable, Input {
 	public void run () {
 		while (true) {
 			try {
+				connected = false;
+				if (listener != null) listener.onDisconnected();
+
 				System.out.println("listening, port " + port);
 				Socket socket = null;
-				while (true) {
-					socket = serverSocket.accept();
-					break;
-				}
+
+				socket = serverSocket.accept();
 				socket.setTcpNoDelay(true);
 				socket.setSoTimeout(3000);
+				connected = true;
+				if (listener != null) listener.onConnected();
 
 				DataInputStream in = new DataInputStream(socket.getInputStream());
 				multiTouch = in.readBoolean();
@@ -251,6 +272,10 @@ public class RemoteInput implements Runnable, Input {
 				e.printStackTrace();
 			}
 		}
+	}
+
+	public boolean isConnected () {
+		return connected;
 	}
 
 	@Override
@@ -431,6 +456,10 @@ public class RemoteInput implements Runnable, Input {
 
 	@Override
 	public void setCursorPosition (int x, int y) {
+	}
+
+	@Override
+	public void setCursorImage (Pixmap pixmap, int xHotspot, int yHotspot) {
 	}
 
 	@Override
